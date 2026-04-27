@@ -9,19 +9,19 @@ export class WishlistsService {
 
   // Compatibility layer: the old wishlist page now manages the same dishes
   // that are rendered on the home ordering page.
-  async getUserWishlists(_userId: string) {
+  async getUserWishlists() {
     return this.dishesService.getAllManagedDishes();
   }
 
-  async addWishlist(_userId: string, wishlistData: CreateDishDto) {
+  async addWishlist(wishlistData: CreateDishDto) {
     return this.dishesService.createDish(wishlistData);
   }
 
-  async updateWishlist(_userId: string, wishlistId: string, wishlistData: UpdateDishDto) {
+  async updateWishlist(wishlistId: string, wishlistData: UpdateDishDto) {
     return this.dishesService.updateDish(wishlistId, wishlistData);
   }
 
-  async deleteWishlist(_userId: string, wishlistId: string) {
+  async deleteWishlist(wishlistId: string) {
     return this.dishesService.deleteDish(wishlistId);
   }
 

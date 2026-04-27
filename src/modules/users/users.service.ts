@@ -37,4 +37,11 @@ export class UsersService {
     }
     return user;
   }
+
+  async getDefaultUser(): Promise<User> {
+    return this.findOrCreate('default-openid', {
+      nickname: 'Default User',
+      role: 'chef',
+    });
+  }
 }

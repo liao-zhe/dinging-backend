@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { DishesModule } from './modules/dishes/dishes.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -34,7 +33,6 @@ import { UploadModule } from './modules/upload/upload.module';
     }),
 
     // 业务模块
-    AuthModule,
     UsersModule,
     DishesModule,
     OrdersModule,

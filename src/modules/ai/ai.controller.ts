@@ -1,53 +1,52 @@
-import { Controller, Post, Get, Put, Body, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { UsersService } from '../users/users.service';
 import { AiService } from './ai.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@ApiTags('AI助手')
+@ApiTags('AI鍔╂墜')
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get('avatar')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '获取用户AI头像' })
-  @ApiResponse({ status: 200, description: '获取成功' })
-  async getUserAvatar(@Request() req) {
-    const avatar = await this.aiService.getUserAvatar(req.user.userId);
+  @ApiOperation({ summary: '鑾峰彇鐢ㄦ埛AI澶村儚' })
+  @ApiResponse({ status: 200, description: '鑾峰彇鎴愬姛' })
+  async getUserAvatar() {
+    const defaultUser = await this.usersService.getDefaultUser();
+    const avatar = await this.aiService.getUserAvatar(defaultUser.id);
     return {
       code: 0,
       data: avatar,
-      message: '获取成功',
+      message: '鑾峰彇鎴愬姛',
     };
   }
 
   @Put('avatar')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '更新用户AI头像' })
-  @ApiResponse({ status: 200, description: '更新成功' })
-  @ApiResponse({ status: 400, description: '更新失败' })
-  async updateAvatar(@Request() req, @Body() body: { avatar_url: string }) {
-    const avatar = await this.aiService.updateAvatar(req.user.userId, body.avatar_url);
+  @ApiOperation({ summary: '鏇存柊鐢ㄦ埛AI澶村儚' })
+  @ApiResponse({ status: 200, description: '鏇存柊鎴愬姛' })
+  @ApiResponse({ status: 400, description: '鏇存柊澶辫触' })
+  async updateAvatar(@Body() body: { avatar_url: string }) {
+    const defaultUser = await this.usersService.getDefaultUser();
+    const avatar = await this.aiService.updateAvatar(defaultUser.id, body.avatar_url);
     return {
       code: 0,
       data: avatar,
-      message: '更新成功',
+      message: '鏇存柊鎴愬姛',
     };
   }
 
   @Post('chat')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'AI对话' })
-  @ApiResponse({ status: 200, description: '对话成功' })
+  @ApiOperation({ summary: 'AI瀵硅瘽' })
+  @ApiResponse({ status: 200, description: '瀵硅瘽鎴愬姛' })
   async chat(@Body() body: { message: string }) {
     const response = await this.aiService.chat(body.message);
     return {
       code: 0,
       data: response,
-      message: '对话成功',
+      message: '瀵硅瘽鎴愬姛',
     };
   }
 }

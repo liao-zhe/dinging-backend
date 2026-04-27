@@ -23,7 +23,6 @@ async function bootstrap() {
     .setTitle('家庭私厨API')
     .setDescription('家庭私厨小程序后端接口文档')
     .setVersion('1.0')
-    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);

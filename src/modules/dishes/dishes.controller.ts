@@ -1,9 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { DishesService } from './dishes.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateDishDto } from './dto/create-dish.dto';
 import { UpdateDishDto } from './dto/update-dish.dto';
+import { DishesService } from './dishes.service';
 
 @ApiTags('dishes')
 @Controller('dishes')
@@ -35,14 +34,9 @@ export class DishesController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a dish for home page display' })
   @ApiResponse({ status: 200, description: 'Created successfully' })
-  async createDish(
-    @Body()
-    body: CreateDishDto,
-  ) {
+  async createDish(@Body() body: CreateDishDto) {
     const dish = await this.dishesService.createDish(body);
     return {
       code: 0,
@@ -52,15 +46,9 @@ export class DishesController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a managed dish' })
   @ApiResponse({ status: 200, description: 'Updated successfully' })
-  async updateDish(
-    @Param('id') id: string,
-    @Body()
-    body: UpdateDishDto,
-  ) {
+  async updateDish(@Param('id') id: string, @Body() body: UpdateDishDto) {
     const dish = await this.dishesService.updateDish(id, body);
     return {
       code: 0,
@@ -103,8 +91,6 @@ export class DishesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a managed dish' })
   @ApiResponse({ status: 200, description: 'Deleted successfully' })
   async deleteDish(@Param('id') id: string) {

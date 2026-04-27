@@ -1,19 +1,16 @@
-import { Controller, Get, Put, Body, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, Get, Put } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@ApiTags('用户')
+@ApiTags('鐢ㄦ埛')
 @Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '获取用户信息' })
-  async getProfile(@Request() req) {
-    const user = await this.usersService.findById(req.user.userId);
+  @ApiOperation({ summary: '鑾峰彇鐢ㄦ埛淇℃伅' })
+  async getProfile() {
+    const user = await this.usersService.getDefaultUser();
     return {
       code: 0,
       data: user,
@@ -22,11 +19,10 @@ export class UsersController {
   }
 
   @Put('profile')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '更新用户信息' })
-  async updateProfile(@Request() req, @Body() body: { nickname?: string; avatar_url?: string; phone?: string }) {
-    const user = await this.usersService.update(req.user.userId, body);
+  @ApiOperation({ summary: '鏇存柊鐢ㄦ埛淇℃伅' })
+  async updateProfile(@Body() body: { nickname?: string; avatar_url?: string; phone?: string }) {
+    const defaultUser = await this.usersService.getDefaultUser();
+    const user = await this.usersService.update(defaultUser.id, body);
     return {
       code: 0,
       data: user,

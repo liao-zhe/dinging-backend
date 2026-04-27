@@ -1,9 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { WishlistsService } from './wishlists.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateDishDto } from '../dishes/dto/create-dish.dto';
 import { UpdateDishDto } from '../dishes/dto/update-dish.dto';
+import { WishlistsService } from './wishlists.service';
 
 @ApiTags('managed-dishes-compat')
 @Controller('wishlists')
@@ -11,12 +10,10 @@ export class WishlistsController {
   constructor(private readonly wishlistsService: WishlistsService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Compatibility list for managed dishes' })
   @ApiResponse({ status: 200, description: 'Success' })
-  async getUserWishlists(@Request() req) {
-    const dishes = await this.wishlistsService.getUserWishlists(req.user.userId);
+  async getUserWishlists() {
+    const dishes = await this.wishlistsService.getUserWishlists();
     return {
       code: 0,
       data: dishes,
@@ -25,16 +22,10 @@ export class WishlistsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Compatibility create endpoint for managed dishes' })
   @ApiResponse({ status: 200, description: 'Created successfully' })
-  async addWishlist(
-    @Request() req,
-    @Body()
-    body: CreateDishDto,
-  ) {
-    const dish = await this.wishlistsService.addWishlist(req.user.userId, body);
+  async addWishlist(@Body() body: CreateDishDto) {
+    const dish = await this.wishlistsService.addWishlist(body);
     return {
       code: 0,
       data: dish,
@@ -43,17 +34,10 @@ export class WishlistsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Compatibility update endpoint for managed dishes' })
   @ApiResponse({ status: 200, description: 'Updated successfully' })
-  async updateWishlist(
-    @Request() req,
-    @Param('id') id: string,
-    @Body()
-    body: UpdateDishDto,
-  ) {
-    const dish = await this.wishlistsService.updateWishlist(req.user.userId, id, body);
+  async updateWishlist(@Param('id') id: string, @Body() body: UpdateDishDto) {
+    const dish = await this.wishlistsService.updateWishlist(id, body);
     return {
       code: 0,
       data: dish,
@@ -62,12 +46,10 @@ export class WishlistsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Compatibility delete endpoint for managed dishes' })
   @ApiResponse({ status: 200, description: 'Deleted successfully' })
-  async deleteWishlist(@Request() req, @Param('id') id: string) {
-    const result = await this.wishlistsService.deleteWishlist(req.user.userId, id);
+  async deleteWishlist(@Param('id') id: string) {
+    const result = await this.wishlistsService.deleteWishlist(id);
     return {
       code: 0,
       data: result,
