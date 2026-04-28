@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { UploadService } from '../upload/upload.service';
 import { Dish } from './dish.entity';
 import { Category } from './category.entity';
 import { CreateDishDto } from './dto/create-dish.dto';
@@ -14,7 +15,21 @@ export class DishesService {
     private dishesRepository: Repository<Dish>,
     @InjectRepository(Category)
     private categoriesRepository: Repository<Category>,
+    private readonly uploadService: UploadService,
   ) {}
+
+  private normalizeDishImage<T extends Dish | Dish[] | null>(dishOrDishes: T): T {
+    if (!dishOrDishes) {
+      return dishOrDishes;
+    }
+
+    if (Array.isArray(dishOrDishes)) {
+      return dishOrDishes.map((dish) => this.normalizeDishImage(dish)) as T;
+    }
+
+    dishOrDishes.image_url = this.uploadService.resolveFileUrl(dishOrDishes.image_url);
+    return dishOrDishes;
+  }
 
   async getCategories() {
     return this.categoriesRepository.find({
@@ -24,32 +39,36 @@ export class DishesService {
   }
 
   async getDishes() {
-    return this.dishesRepository.find({
+    const dishes = await this.dishesRepository.find({
       where: { is_active: 1 },
       relations: ['category'],
       order: { sort_order: 'ASC' },
     });
+    return this.normalizeDishImage(dishes);
   }
 
   async getAllManagedDishes() {
-    return this.dishesRepository.find({
+    const dishes = await this.dishesRepository.find({
       relations: ['category'],
       order: { sort_order: 'ASC', created_at: 'DESC' },
     });
+    return this.normalizeDishImage(dishes);
   }
 
   async getDishesByCategory(categoryId: string) {
-    return this.dishesRepository.find({
+    const dishes = await this.dishesRepository.find({
       where: { category_id: categoryId, is_active: 1 },
       order: { sort_order: 'ASC' },
     });
+    return this.normalizeDishImage(dishes);
   }
 
   async getDishById(id: string) {
-    return this.dishesRepository.findOne({
+    const dish = await this.dishesRepository.findOne({
       where: { id, is_active: 1 },
       relations: ['category'],
     });
+    return this.normalizeDishImage(dish);
   }
 
   async createDish(data: CreateDishDto) {
@@ -87,10 +106,11 @@ export class DishesService {
     });
 
     const savedDish = await this.dishesRepository.save(dish);
-    return this.dishesRepository.findOne({
+    const nextDish = await this.dishesRepository.findOne({
       where: { id: savedDish.id },
       relations: ['category'],
     });
+    return this.normalizeDishImage(nextDish);
   }
 
   async updateDish(id: string, data: UpdateDishDto) {
@@ -138,10 +158,11 @@ export class DishesService {
     }
 
     const savedDish = await this.dishesRepository.save(dish);
-    return this.dishesRepository.findOne({
+    const nextDish = await this.dishesRepository.findOne({
       where: { id: savedDish.id },
       relations: ['category'],
     });
+    return this.normalizeDishImage(nextDish);
   }
 
   async deleteDish(id: string) {
@@ -155,7 +176,7 @@ export class DishesService {
   }
 
   async searchDishes(keyword: string) {
-    return this.dishesRepository
+    const dishes = await this.dishesRepository
       .createQueryBuilder('dish')
       .where('dish.is_active = :active', { active: 1 })
       .andWhere('(dish.name LIKE :keyword OR dish.description LIKE :keyword)', {
@@ -163,5 +184,6 @@ export class DishesService {
       })
       .orderBy('dish.sort_order', 'ASC')
       .getMany();
+    return this.normalizeDishImage(dishes);
   }
 }

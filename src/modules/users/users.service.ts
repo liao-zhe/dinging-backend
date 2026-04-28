@@ -7,7 +7,7 @@ import { User } from './user.entity';
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private readonly usersRepository: Repository<User>,
   ) {}
 
   async findByOpenid(openid: string): Promise<User | null> {
@@ -24,24 +24,38 @@ export class UsersService {
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
-    await this.usersRepository.update(id, data);
+    const nextData = { ...data };
+    if (Object.prototype.hasOwnProperty.call(nextData, 'phone')) {
+      nextData.phone = this.normalizePhone(nextData.phone);
+    }
+
+    await this.usersRepository.update(id, nextData);
     return this.findById(id);
   }
 
   async findOrCreate(openid: string, data: Partial<User> = {}): Promise<User> {
+    const normalizedPhone = this.normalizePhone(data.phone);
+    const nextData: Partial<User> = {
+      ...data,
+      phone: normalizedPhone,
+    };
+
     let user = await this.findByOpenid(openid);
     if (!user) {
-      user = await this.create({ openid, ...data });
-    } else if (Object.keys(data).length > 0) {
-      user = await this.update(user.id, data);
+      user = await this.create({ openid, ...nextData });
+    } else if (Object.keys(nextData).some((key) => nextData[key] !== undefined)) {
+      user = await this.update(user.id, nextData);
     }
+
     return user;
   }
 
-  async getDefaultUser(): Promise<User> {
-    return this.findOrCreate('default-openid', {
-      nickname: 'Default User',
-      role: 'chef',
-    });
+  private normalizePhone(phone?: string): string | null {
+    if (!phone) {
+      return null;
+    }
+
+    const digits = phone.replace(/\D/g, '');
+    return digits || null;
   }
 }

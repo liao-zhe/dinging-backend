@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,6 +17,7 @@ export class UploadService implements OnModuleInit {
   private readonly client: Client;
   private readonly bucket: string;
   private readonly publicUrl: string;
+  private isBucketReady = false;
 
   constructor(private readonly configService: ConfigService) {
     const endPoint = this.configService.get<string>('MINIO_ENDPOINT');
@@ -20,8 +28,14 @@ export class UploadService implements OnModuleInit {
       throw new Error('Missing MinIO configuration');
     }
 
-    const port = this.configService.get<number>('MINIO_PORT', 9000);
-    const useSSL = this.configService.get<string>('MINIO_USE_SSL', 'false') === 'true';
+    const rawPort = this.configService.get<string>('MINIO_PORT');
+    const port = rawPort ? Number(rawPort) : 9000;
+    const rawUseSSL = this.configService.get<string>('MINIO_USE_SSL', 'false');
+    const useSSL = rawUseSSL.trim().toLowerCase() === 'true';
+
+    if (!Number.isInteger(port) || port <= 0) {
+      throw new Error(`Invalid MINIO_PORT: ${rawPort}`);
+    }
 
     this.client = new Client({
       endPoint,
@@ -39,8 +53,28 @@ export class UploadService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    await this.ensureBucketExists();
-    this.logger.log(`MinIO upload ready. bucket=${this.bucket}, publicUrl=${this.publicUrl}`);
+    this.isBucketReady = await this.ensureBucketExists();
+
+    if (this.isBucketReady) {
+      this.logger.log(`MinIO upload ready. bucket=${this.bucket}, publicUrl=${this.publicUrl}`);
+      return;
+    }
+
+    this.logger.warn(
+      `MinIO upload unavailable at startup. bucket=${this.bucket}, endpoint=${this.configService.get<string>('MINIO_ENDPOINT')}`,
+    );
+  }
+
+  resolveFileUrl(filePath?: string | null) {
+    if (!filePath) {
+      return filePath ?? null;
+    }
+
+    if (/^https?:\/\//i.test(filePath)) {
+      return filePath;
+    }
+
+    return `${this.publicUrl}/${filePath.replace(/^\/+/, '')}`;
   }
 
   private async ensureBucketExists() {
@@ -50,9 +84,16 @@ export class UploadService implements OnModuleInit {
         await this.client.makeBucket(this.bucket, 'us-east-1');
         this.logger.log(`Created bucket: ${this.bucket}`);
       }
+
+      return true;
     } catch (error) {
-      this.logger.error(`Failed to ensure MinIO bucket "${this.bucket}" exists`, error?.stack || error);
-      throw new InternalServerErrorException('MinIO bucket initialization failed');
+      const errorMessage =
+        error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error);
+      this.logger.error(
+        `Failed to ensure MinIO bucket "${this.bucket}" exists. ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return false;
     }
   }
 
@@ -63,6 +104,14 @@ export class UploadService implements OnModuleInit {
 
     if (!file.mimetype?.startsWith('image/')) {
       throw new BadRequestException('Only image files are allowed');
+    }
+
+    if (!this.isBucketReady) {
+      this.isBucketReady = await this.ensureBucketExists();
+    }
+
+    if (!this.isBucketReady) {
+      throw new ServiceUnavailableException('Image upload service is temporarily unavailable');
     }
 
     const ext = path.extname(file.originalname || '') || '';
@@ -81,7 +130,7 @@ export class UploadService implements OnModuleInit {
     return {
       bucket: this.bucket,
       objectKey,
-      url: `${this.publicUrl}/${objectKey}`,
+      url: this.resolveFileUrl(objectKey),
     };
   }
 }

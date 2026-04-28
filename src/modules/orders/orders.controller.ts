@@ -1,21 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { UsersService } from '../users/users.service';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { OrdersService } from './orders.service';
 
 @ApiTags('orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    private readonly ordersService: OrdersService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create order' })
   @ApiResponse({ status: 200, description: 'Created successfully' })
   @ApiResponse({ status: 400, description: 'Create failed' })
   async createOrder(
+    @CurrentUser() user: AuthenticatedUser,
     @Body()
     body: {
       order_date: string;
@@ -24,8 +28,7 @@ export class OrdersController {
       items: Array<{ dish_id: string; quantity: number }>;
     },
   ) {
-    const defaultUser = await this.usersService.getDefaultUser();
-    const order = await this.ordersService.createOrder(defaultUser.id, body);
+    const order = await this.ordersService.createOrder(user.userId, body);
     return {
       code: 0,
       data: order,
@@ -34,12 +37,13 @@ export class OrdersController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user orders' })
   @ApiQuery({ name: 'status', description: 'Filter by order status', required: false })
   @ApiResponse({ status: 200, description: 'Success' })
-  async getUserOrders(@Query('status') status?: string) {
-    const defaultUser = await this.usersService.getDefaultUser();
-    const orders = await this.ordersService.getUserOrders(defaultUser.id, status);
+  async getUserOrders(@CurrentUser() user: AuthenticatedUser, @Query('status') status?: string) {
+    const orders = await this.ordersService.getUserOrders(user.userId, status);
     return {
       code: 0,
       data: orders,
@@ -47,14 +51,49 @@ export class OrdersController {
     };
   }
 
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('chef')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all orders for chef' })
+  @ApiQuery({ name: 'status', description: 'Filter by order status', required: false })
+  @ApiResponse({ status: 200, description: 'Success' })
+  async getAllOrders(@Query('status') status?: string) {
+    const orders = await this.ordersService.getAllOrders(status);
+    return {
+      code: 0,
+      data: orders,
+      message: 'success',
+    };
+  }
+
+  @Put('admin/:id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('chef')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update order status for chef' })
+  @ApiResponse({ status: 200, description: 'Updated successfully' })
+  @ApiResponse({ status: 400, description: 'Update failed' })
+  async updateOrderStatus(@Param('id') id: string, @Body() body: { status: string }) {
+    const order = await this.ordersService.updateOrderStatus(id, body.status);
+    return {
+      code: 0,
+      data: order,
+      message: 'updated',
+    };
+  }
+
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get order detail' })
   @ApiResponse({ status: 200, description: 'Success' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async getOrderById(@Param('id') id: string) {
-    const defaultUser = await this.usersService.getDefaultUser();
+  async getOrderById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     const order = await this.ordersService.getOrderById(id);
-    if (!order || order.user_id !== defaultUser.id) {
+    const canAccess = order && (order.user_id === user.userId || user.role === 'chef');
+
+    if (!canAccess) {
       return {
         code: 404,
         data: null,
@@ -70,12 +109,13 @@ export class OrdersController {
   }
 
   @Put(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel order' })
   @ApiResponse({ status: 200, description: 'Cancelled successfully' })
   @ApiResponse({ status: 400, description: 'Cancel failed' })
-  async cancelOrder(@Param('id') id: string) {
-    const defaultUser = await this.usersService.getDefaultUser();
-    const order = await this.ordersService.cancelOrder(defaultUser.id, id);
+  async cancelOrder(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    const order = await this.ordersService.cancelOrder(user.userId, id);
     return {
       code: 0,
       data: order,
@@ -84,42 +124,17 @@ export class OrdersController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete order' })
   @ApiResponse({ status: 200, description: 'Deleted successfully' })
   @ApiResponse({ status: 400, description: 'Delete failed' })
-  async deleteOrder(@Param('id') id: string) {
-    const defaultUser = await this.usersService.getDefaultUser();
-    const result = await this.ordersService.deleteOrder(defaultUser.id, id);
+  async deleteOrder(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    const result = await this.ordersService.deleteOrder(user.userId, id);
     return {
       code: 0,
       data: result,
       message: 'order deleted',
-    };
-  }
-
-  @Get('admin/all')
-  @ApiOperation({ summary: 'Get all orders for admin' })
-  @ApiQuery({ name: 'status', description: 'Filter by order status', required: false })
-  @ApiResponse({ status: 200, description: 'Success' })
-  async getAllOrders(@Query('status') status?: string) {
-    const orders = await this.ordersService.getAllOrders(status);
-    return {
-      code: 0,
-      data: orders,
-      message: 'success',
-    };
-  }
-
-  @Put('admin/:id/status')
-  @ApiOperation({ summary: 'Update order status for admin' })
-  @ApiResponse({ status: 200, description: 'Updated successfully' })
-  @ApiResponse({ status: 400, description: 'Update failed' })
-  async updateOrderStatus(@Param('id') id: string, @Body() body: { status: string }) {
-    const order = await this.ordersService.updateOrderStatus(id, body.status);
-    return {
-      code: 0,
-      data: order,
-      message: 'updated',
     };
   }
 }

@@ -1,21 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './modules/users/users.module';
+import { AiModule } from './modules/ai/ai.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { DishesModule } from './modules/dishes/dishes.module';
 import { OrdersModule } from './modules/orders/orders.module';
-import { WishlistsModule } from './modules/wishlists/wishlists.module';
-import { AiModule } from './modules/ai/ai.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { UsersModule } from './modules/users/users.module';
+import { WishlistsModule } from './modules/wishlists/wishlists.module';
 
 @Module({
   imports: [
-    // 配置模块
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-
-    // 数据库连接
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,12 +25,11 @@ import { UploadModule } from './modules/upload/upload.module';
         password: configService.get('DB_PASSWORD', 'root123'),
         database: configService.get('DB_DATABASE', 'homechef'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // 生产环境设为false
+        synchronize: false,
         logging: true,
       }),
     }),
-
-    // 业务模块
+    AuthModule,
     UsersModule,
     DishesModule,
     OrdersModule,

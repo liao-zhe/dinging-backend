@@ -1,52 +1,56 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { UsersService } from '../users/users.service';
+import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
 
-@ApiTags('AI鍔╂墜')
+@ApiTags('ai')
 @Controller('ai')
 export class AiController {
-  constructor(
-    private readonly aiService: AiService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly aiService: AiService) {}
 
   @Get('avatar')
-  @ApiOperation({ summary: '鑾峰彇鐢ㄦ埛AI澶村儚' })
-  @ApiResponse({ status: 200, description: '鑾峰彇鎴愬姛' })
-  async getUserAvatar() {
-    const defaultUser = await this.usersService.getDefaultUser();
-    const avatar = await this.aiService.getUserAvatar(defaultUser.id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user AI avatar' })
+  @ApiResponse({ status: 200, description: 'Loaded successfully' })
+  async getUserAvatar(@CurrentUser() user: AuthenticatedUser) {
+    const avatar = await this.aiService.getUserAvatar(user.userId);
     return {
       code: 0,
       data: avatar,
-      message: '鑾峰彇鎴愬姛',
+      message: 'success',
     };
   }
 
   @Put('avatar')
-  @ApiOperation({ summary: '鏇存柊鐢ㄦ埛AI澶村儚' })
-  @ApiResponse({ status: 200, description: '鏇存柊鎴愬姛' })
-  @ApiResponse({ status: 400, description: '鏇存柊澶辫触' })
-  async updateAvatar(@Body() body: { avatar_url: string }) {
-    const defaultUser = await this.usersService.getDefaultUser();
-    const avatar = await this.aiService.updateAvatar(defaultUser.id, body.avatar_url);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user AI avatar' })
+  @ApiResponse({ status: 200, description: 'Updated successfully' })
+  @ApiResponse({ status: 400, description: 'Update failed' })
+  async updateAvatar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { avatar_url: string },
+  ) {
+    const avatar = await this.aiService.updateAvatar(user.userId, body.avatar_url);
     return {
       code: 0,
       data: avatar,
-      message: '鏇存柊鎴愬姛',
+      message: 'success',
     };
   }
 
   @Post('chat')
-  @ApiOperation({ summary: 'AI瀵硅瘽' })
-  @ApiResponse({ status: 200, description: '瀵硅瘽鎴愬姛' })
+  @ApiOperation({ summary: 'AI chat' })
+  @ApiResponse({ status: 200, description: 'Success' })
   async chat(@Body() body: { message: string }) {
     const response = await this.aiService.chat(body.message);
     return {
       code: 0,
       data: response,
-      message: '瀵硅瘽鎴愬姛',
+      message: 'success',
     };
   }
 }

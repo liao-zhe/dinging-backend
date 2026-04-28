@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateDishDto } from './dto/create-dish.dto';
 import { UpdateDishDto } from './dto/update-dish.dto';
 import { DishesService } from './dishes.service';
@@ -34,6 +35,8 @@ export class DishesController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a dish for home page display' })
   @ApiResponse({ status: 200, description: 'Created successfully' })
   async createDish(@Body() body: CreateDishDto) {
@@ -46,6 +49,8 @@ export class DishesController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a managed dish' })
   @ApiResponse({ status: 200, description: 'Updated successfully' })
   async updateDish(@Param('id') id: string, @Body() body: UpdateDishDto) {
@@ -91,6 +96,8 @@ export class DishesController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a managed dish' })
   @ApiResponse({ status: 200, description: 'Deleted successfully' })
   async deleteDish(@Param('id') id: string) {

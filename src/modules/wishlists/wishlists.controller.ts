@@ -1,11 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateDishDto } from '../dishes/dto/create-dish.dto';
 import { UpdateDishDto } from '../dishes/dto/update-dish.dto';
 import { WishlistsService } from './wishlists.service';
 
 @ApiTags('managed-dishes-compat')
 @Controller('wishlists')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class WishlistsController {
   constructor(private readonly wishlistsService: WishlistsService) {}
 

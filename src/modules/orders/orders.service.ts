@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Order } from './order.entity';
 import { OrderItem } from './order-item.entity';
 import { Dish } from '../dishes/dish.entity';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class OrdersService {
@@ -15,7 +16,24 @@ export class OrdersService {
     private orderItemsRepository: Repository<OrderItem>,
     @InjectRepository(Dish)
     private dishesRepository: Repository<Dish>,
+    private readonly uploadService: UploadService,
   ) {}
+
+  private normalizeOrderImages<T extends Order | Order[] | null>(orderOrOrders: T): T {
+    if (!orderOrOrders) {
+      return orderOrOrders;
+    }
+
+    if (Array.isArray(orderOrOrders)) {
+      return orderOrOrders.map((order) => this.normalizeOrderImages(order)) as T;
+    }
+
+    orderOrOrders.items?.forEach((item) => {
+      item.dish_image = this.uploadService.resolveFileUrl(item.dish_image);
+    });
+
+    return orderOrOrders;
+  }
 
   private generateOrderNo(): string {
     const date = new Date();
@@ -49,7 +67,7 @@ export class OrdersService {
         id: uuidv4(),
         dish_id: dish.id,
         dish_name: dish.name,
-        dish_image: dish.image_url,
+        dish_image: this.uploadService.resolveFileUrl(dish.image_url),
         quantity: item.quantity,
       };
     });
@@ -83,18 +101,20 @@ export class OrdersService {
       where.status = status;
     }
 
-    return this.ordersRepository.find({
+    const orders = await this.ordersRepository.find({
       where,
       relations: ['items'],
       order: { created_at: 'DESC' },
     });
+    return this.normalizeOrderImages(orders);
   }
 
   async getOrderById(orderId: string) {
-    return this.ordersRepository.findOne({
+    const order = await this.ordersRepository.findOne({
       where: { id: orderId },
       relations: ['items', 'user'],
     });
+    return this.normalizeOrderImages(order);
   }
 
   async cancelOrder(userId: string, orderId: string) {
@@ -137,11 +157,12 @@ export class OrdersService {
       where.status = status;
     }
 
-    return this.ordersRepository.find({
+    const orders = await this.ordersRepository.find({
       where,
       relations: ['items', 'user'],
       order: { created_at: 'DESC' },
     });
+    return this.normalizeOrderImages(orders);
   }
 
   async updateOrderStatus(orderId: string, status: string) {
