@@ -1,7 +1,15 @@
-﻿-- ============================================
+-- ============================================
 -- Family Chef - database initialization script
 -- Database: homechef
+--
+-- Usage:
+-- 1. Supports fresh database initialization
+-- 2. Can also be run against an existing database to patch schema drift
+-- 3. Safe to execute repeatedly on MySQL 8.x
 -- ============================================
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(36) PRIMARY KEY COMMENT 'User ID (UUID)',
@@ -36,8 +44,7 @@ CREATE TABLE IF NOT EXISTS dishes (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
   INDEX idx_category (category_id),
-  INDEX idx_sort (sort_order),
-  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
+  INDEX idx_sort (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Dishes';
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -53,8 +60,7 @@ CREATE TABLE IF NOT EXISTS orders (
   INDEX idx_user (user_id),
   INDEX idx_order_no (order_no),
   INDEX idx_status (status),
-  INDEX idx_date (order_date),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
+  INDEX idx_date (order_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Orders';
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -65,9 +71,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   dish_image TEXT COMMENT 'Dish image snapshot',
   quantity INT NOT NULL COMMENT 'Quantity',
   INDEX idx_order (order_id),
-  INDEX idx_dish (dish_id),
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-  FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE RESTRICT
+  INDEX idx_dish (dish_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Order items';
 
 CREATE TABLE IF NOT EXISTS wishlists (
@@ -77,17 +81,365 @@ CREATE TABLE IF NOT EXISTS wishlists (
   image_url TEXT COMMENT 'Image URL',
   remark TEXT COMMENT 'Remark',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
-  INDEX idx_user (user_id),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Wishlists';
 
 CREATE TABLE IF NOT EXISTS ai_avatars (
   id VARCHAR(36) PRIMARY KEY COMMENT 'Record ID',
   user_id VARCHAR(36) UNIQUE NOT NULL COMMENT 'User ID',
   avatar_url TEXT NOT NULL COMMENT 'Avatar URL',
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI avatars';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'
+  ),
+  'SELECT "users.role already exists" AS message',
+  'ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT ''customer'' COMMENT ''User role'' AFTER phone'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE users
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'User ID (UUID)',
+  MODIFY COLUMN openid VARCHAR(100) NOT NULL COMMENT 'WeChat openid',
+  MODIFY COLUMN nickname VARCHAR(50) NULL COMMENT 'Nickname',
+  MODIFY COLUMN avatar_url TEXT NULL COMMENT 'Avatar URL',
+  MODIFY COLUMN phone VARCHAR(20) NULL COMMENT 'Phone number',
+  MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'customer' COMMENT 'User role',
+  MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND INDEX_NAME = 'idx_openid'
+  ),
+  'SELECT "idx_openid already exists" AS message',
+  'CREATE INDEX idx_openid ON users (openid)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE categories
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Category ID',
+  MODIFY COLUMN name VARCHAR(50) NOT NULL COMMENT 'Category name',
+  MODIFY COLUMN sort_order INT NULL DEFAULT 0 COMMENT 'Sort order',
+  MODIFY COLUMN is_active TINYINT(1) NULL DEFAULT 1 COMMENT 'Whether active',
+  MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categories' AND INDEX_NAME = 'idx_sort'
+  ),
+  'SELECT "categories.idx_sort already exists" AS message',
+  'CREATE INDEX idx_sort ON categories (sort_order)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'description'
+  ),
+  'SELECT "dishes.description already exists" AS message',
+  'ALTER TABLE dishes ADD COLUMN description TEXT NULL COMMENT ''Description'' AFTER name'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'image_url'
+  ),
+  'SELECT "dishes.image_url already exists" AS message',
+  'ALTER TABLE dishes ADD COLUMN image_url TEXT NULL COMMENT ''Image URL'' AFTER description'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'tag'
+  ),
+  'SELECT "dishes.tag already exists" AS message',
+  'ALTER TABLE dishes ADD COLUMN tag VARCHAR(50) NULL COMMENT ''Tag'' AFTER image_url'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'is_active'
+  ),
+  'SELECT "dishes.is_active already exists" AS message',
+  'ALTER TABLE dishes ADD COLUMN is_active TINYINT(1) NULL DEFAULT 1 COMMENT ''Whether active'' AFTER tag'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'sort_order'
+  ),
+  'SELECT "dishes.sort_order already exists" AS message',
+  'ALTER TABLE dishes ADD COLUMN sort_order INT NULL DEFAULT 0 COMMENT ''Sort order'' AFTER is_active'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE dishes
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Dish ID',
+  MODIFY COLUMN category_id VARCHAR(36) NOT NULL COMMENT 'Category ID',
+  MODIFY COLUMN name VARCHAR(100) NOT NULL COMMENT 'Dish name',
+  MODIFY COLUMN description TEXT NULL COMMENT 'Description',
+  MODIFY COLUMN image_url TEXT NULL COMMENT 'Image URL',
+  MODIFY COLUMN tag VARCHAR(50) NULL COMMENT 'Tag',
+  MODIFY COLUMN is_active TINYINT(1) NULL DEFAULT 1 COMMENT 'Whether active',
+  MODIFY COLUMN sort_order INT NULL DEFAULT 0 COMMENT 'Sort order',
+  MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'price'
+  ),
+  'ALTER TABLE dishes MODIFY COLUMN price DECIMAL(10,2) NULL COMMENT ''Legacy price column kept for compatibility''',
+  'SELECT "dishes.price does not exist, skip" AS message'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND INDEX_NAME = 'idx_category'
+  ),
+  'SELECT "dishes.idx_category already exists" AS message',
+  'CREATE INDEX idx_category ON dishes (category_id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND INDEX_NAME = 'idx_sort'
+  ),
+  'SELECT "dishes.idx_sort already exists" AS message',
+  'CREATE INDEX idx_sort ON dishes (sort_order)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE orders
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Order ID',
+  MODIFY COLUMN user_id VARCHAR(36) NOT NULL COMMENT 'User ID',
+  MODIFY COLUMN order_no VARCHAR(20) NOT NULL COMMENT 'Order number',
+  MODIFY COLUMN order_date DATE NOT NULL COMMENT 'Order date',
+  MODIFY COLUMN meal_type VARCHAR(20) NOT NULL COMMENT 'Meal type',
+  MODIFY COLUMN people_count INT NOT NULL COMMENT 'People count',
+  MODIFY COLUMN status VARCHAR(20) NULL DEFAULT 'pending' COMMENT 'Order status',
+  MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_user'
+  ),
+  'SELECT "orders.idx_user already exists" AS message',
+  'CREATE INDEX idx_user ON orders (user_id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_order_no'
+  ),
+  'SELECT "orders.idx_order_no already exists" AS message',
+  'CREATE INDEX idx_order_no ON orders (order_no)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_status'
+  ),
+  'SELECT "orders.idx_status already exists" AS message',
+  'CREATE INDEX idx_status ON orders (status)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_date'
+  ),
+  'SELECT "orders.idx_date already exists" AS message',
+  'CREATE INDEX idx_date ON orders (order_date)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE order_items
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Order item ID',
+  MODIFY COLUMN order_id VARCHAR(36) NOT NULL COMMENT 'Order ID',
+  MODIFY COLUMN dish_id VARCHAR(36) NOT NULL COMMENT 'Dish ID',
+  MODIFY COLUMN dish_name VARCHAR(100) NOT NULL COMMENT 'Dish name snapshot',
+  MODIFY COLUMN dish_image TEXT NULL COMMENT 'Dish image snapshot',
+  MODIFY COLUMN quantity INT NOT NULL COMMENT 'Quantity';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_items' AND INDEX_NAME = 'idx_order'
+  ),
+  'SELECT "order_items.idx_order already exists" AS message',
+  'CREATE INDEX idx_order ON order_items (order_id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_items' AND INDEX_NAME = 'idx_dish'
+  ),
+  'SELECT "order_items.idx_dish already exists" AS message',
+  'CREATE INDEX idx_dish ON order_items (dish_id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE wishlists
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Wishlist ID',
+  MODIFY COLUMN user_id VARCHAR(36) NOT NULL COMMENT 'User ID',
+  MODIFY COLUMN dish_name VARCHAR(100) NOT NULL COMMENT 'Dish name',
+  MODIFY COLUMN image_url TEXT NULL COMMENT 'Image URL',
+  MODIFY COLUMN remark TEXT NULL COMMENT 'Remark',
+  MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'wishlists' AND INDEX_NAME = 'idx_user'
+  ),
+  'SELECT "wishlists.idx_user already exists" AS message',
+  'CREATE INDEX idx_user ON wishlists (user_id)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+ALTER TABLE ai_avatars
+  MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Record ID',
+  MODIFY COLUMN user_id VARCHAR(36) NOT NULL COMMENT 'User ID',
+  MODIFY COLUMN avatar_url TEXT NOT NULL COMMENT 'Avatar URL',
+  MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'dishes'
+      AND COLUMN_NAME = 'category_id'
+      AND REFERENCED_TABLE_NAME = 'categories'
+      AND REFERENCED_COLUMN_NAME = 'id'
+  ),
+  'SELECT "fk_dishes_category already exists" AS message',
+  'ALTER TABLE dishes ADD CONSTRAINT fk_dishes_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'orders'
+      AND COLUMN_NAME = 'user_id'
+      AND REFERENCED_TABLE_NAME = 'users'
+      AND REFERENCED_COLUMN_NAME = 'id'
+  ),
+  'SELECT "fk_orders_user already exists" AS message',
+  'ALTER TABLE orders ADD CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'order_items'
+      AND COLUMN_NAME = 'order_id'
+      AND REFERENCED_TABLE_NAME = 'orders'
+      AND REFERENCED_COLUMN_NAME = 'id'
+  ),
+  'SELECT "fk_order_items_order already exists" AS message',
+  'ALTER TABLE order_items ADD CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'order_items'
+      AND COLUMN_NAME = 'dish_id'
+      AND REFERENCED_TABLE_NAME = 'dishes'
+      AND REFERENCED_COLUMN_NAME = 'id'
+  ),
+  'SELECT "fk_order_items_dish already exists" AS message',
+  'ALTER TABLE order_items ADD CONSTRAINT fk_order_items_dish FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE RESTRICT'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'wishlists'
+      AND COLUMN_NAME = 'user_id'
+      AND REFERENCED_TABLE_NAME = 'users'
+      AND REFERENCED_COLUMN_NAME = 'id'
+  ),
+  'SELECT "fk_wishlists_user already exists" AS message',
+  'ALTER TABLE wishlists ADD CONSTRAINT fk_wishlists_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'ai_avatars'
+      AND COLUMN_NAME = 'user_id'
+      AND REFERENCED_TABLE_NAME = 'users'
+      AND REFERENCED_COLUMN_NAME = 'id'
+  ),
+  'SELECT "fk_ai_avatars_user already exists" AS message',
+  'ALTER TABLE ai_avatars ADD CONSTRAINT fk_ai_avatars_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 INSERT INTO categories (id, name, sort_order, is_active) VALUES
 ('cat-signature', '招牌菜', 1, 1),
@@ -96,7 +448,10 @@ INSERT INTO categories (id, name, sort_order, is_active) VALUES
 ('cat-dessert', '点心', 4, 1),
 ('cat-staple', '主食', 5, 1),
 ('cat-seafood', '海鲜', 6, 1)
-ON DUPLICATE KEY UPDATE name=VALUES(name);
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  sort_order = VALUES(sort_order),
+  is_active = VALUES(is_active);
 
 INSERT INTO dishes (id, category_id, name, description, image_url, tag, is_active, sort_order) VALUES
 ('dish-1', 'cat-signature', '北京烤鸭', '传统挂炉烤制，皮酥肉嫩，配荷叶饼、甜面酱', 'https://images.unsplash.com/photo-1518492104633-130d0cc84637?auto=format&fit=crop&w=600&q=80', '热销', 1, 1),
@@ -111,7 +466,9 @@ INSERT INTO dishes (id, category_id, name, description, image_url, tag, is_activ
 ('dish-10', 'cat-staple', '葱油拌面', '葱香四溢，面条劲道，简单美味', 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80', '主食', 1, 10),
 ('dish-11', 'cat-seafood', '清蒸鲈鱼', '新鲜鲈鱼，清蒸保留原味，鲜嫩可口', 'https://images.unsplash.com/photo-1534604973900-c43ab4c2e0ab?auto=format&fit=crop&w=600&q=80', '海鲜', 1, 11),
 ('dish-12', 'cat-seafood', '蒜蓉粉丝蒸扇贝', '扇贝鲜美，蒜香浓郁，粉丝入味', 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80', '海鲜', 1, 12)
-ON DUPLICATE KEY UPDATE name=VALUES(name);
+ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 SELECT 'database initialization completed' AS message;
 SELECT COUNT(*) AS category_count FROM categories;
