@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS orders (
   order_date DATE NOT NULL COMMENT 'Order date',
   meal_type VARCHAR(20) NOT NULL COMMENT 'Meal type',
   people_count INT NOT NULL COMMENT 'People count',
+  total_amount DECIMAL(10,2) NULL COMMENT 'Order total amount' AFTER people_count,
   status VARCHAR(20) DEFAULT 'pending' COMMENT 'Order status',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
@@ -303,6 +304,7 @@ ALTER TABLE orders
   MODIFY COLUMN order_date DATE NOT NULL COMMENT 'Order date',
   MODIFY COLUMN meal_type VARCHAR(20) NOT NULL COMMENT 'Meal type',
   MODIFY COLUMN people_count INT NOT NULL COMMENT 'People count',
+  total_amount DECIMAL(10,2) NULL COMMENT 'Order total amount' AFTER people_count,
   MODIFY COLUMN status VARCHAR(20) NULL DEFAULT 'pending' COMMENT 'Order status',
   MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
   MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time';
@@ -348,6 +350,17 @@ SET @sql = IF(
   ),
   'SELECT "orders.idx_date already exists" AS message',
   'CREATE INDEX idx_date ON orders (order_date)'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'total_amount'
+  ),
+  'SELECT "orders.total_amount already exists" AS message',
+  'ALTER TABLE orders ADD COLUMN total_amount DECIMAL(10,2) NULL COMMENT ''Order total amount'' AFTER people_count'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
