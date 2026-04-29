@@ -14,9 +14,11 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(36) PRIMARY KEY COMMENT 'User ID (UUID)',
   openid VARCHAR(100) UNIQUE NOT NULL COMMENT 'WeChat openid',
+  username VARCHAR(50) UNIQUE COMMENT 'Login username for password-based accounts',
   nickname VARCHAR(50) COMMENT 'Nickname',
   avatar_url TEXT COMMENT 'Avatar URL',
   phone VARCHAR(20) COMMENT 'Phone number',
+  password_hash TEXT COMMENT 'Password hash for password-based accounts',
   role VARCHAR(20) NOT NULL DEFAULT 'customer' COMMENT 'User role',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
@@ -102,12 +104,36 @@ SET @sql = IF(
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'username'
+  ),
+  'SELECT "users.username already exists" AS message',
+  'ALTER TABLE users ADD COLUMN username VARCHAR(50) NULL COMMENT ''Login username for password-based accounts'' AFTER openid'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'password_hash'
+  ),
+  'SELECT "users.password_hash already exists" AS message',
+  'ALTER TABLE users ADD COLUMN password_hash TEXT NULL COMMENT ''Password hash for password-based accounts'' AFTER phone'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 ALTER TABLE users
   MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'User ID (UUID)',
   MODIFY COLUMN openid VARCHAR(100) NOT NULL COMMENT 'WeChat openid',
+  MODIFY COLUMN username VARCHAR(50) NULL COMMENT 'Login username for password-based accounts',
   MODIFY COLUMN nickname VARCHAR(50) NULL COMMENT 'Nickname',
   MODIFY COLUMN avatar_url TEXT NULL COMMENT 'Avatar URL',
   MODIFY COLUMN phone VARCHAR(20) NULL COMMENT 'Phone number',
+  MODIFY COLUMN password_hash TEXT NULL COMMENT 'Password hash for password-based accounts',
   MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'customer' COMMENT 'User role',
   MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
   MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time';
@@ -122,6 +148,35 @@ SET @sql = IF(
   'CREATE INDEX idx_openid ON users (openid)'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+UPDATE users
+SET
+  username = 'admin',
+  password_hash = '15b95ce526d70ddab58d1e8cc29480f3:10e2725d79f72d632f37dda04036ecf0dcd88a7896c699c147290eeacdbe48f4bf33a84825ea57383c41f365ec19131b1e3ddcd2ac95f18f5f3f40cb69170653',
+  nickname = COALESCE(NULLIF(nickname, ''), 'Chef'),
+  role = 'chef'
+WHERE openid = 'chef-account:admin';
+
+INSERT INTO users (
+  id,
+  openid,
+  username,
+  nickname,
+  password_hash,
+  role
+) VALUES (
+  'cc44f398-36db-4de7-94ad-c67578fb540a',
+  'chef-account:admin',
+  'admin',
+  'Chef',
+  '15b95ce526d70ddab58d1e8cc29480f3:10e2725d79f72d632f37dda04036ecf0dcd88a7896c699c147290eeacdbe48f4bf33a84825ea57383c41f365ec19131b1e3ddcd2ac95f18f5f3f40cb69170653',
+  'chef'
+)
+ON DUPLICATE KEY UPDATE
+  username = VALUES(username),
+  nickname = VALUES(nickname),
+  password_hash = VALUES(password_hash),
+  role = VALUES(role);
 
 ALTER TABLE categories
   MODIFY COLUMN id VARCHAR(36) NOT NULL COMMENT 'Category ID',

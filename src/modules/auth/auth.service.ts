@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { timingSafeEqual } from 'crypto';
+import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -26,6 +26,11 @@ interface JwtPayload {
 interface ChefLoginParams {
   username: string;
   password: string;
+}
+
+interface ChangeChefPasswordParams {
+  currentPassword: string;
+  newPassword: string;
 }
 
 @Injectable()
@@ -60,26 +65,15 @@ export class AuthService {
       throw new BadRequestException('username and password are required');
     }
 
-    const chefUsername = this.configService.get<string>('CHEF_USERNAME');
-    const chefPassword = this.configService.get<string>('CHEF_PASSWORD');
+    const user = await this.usersService.findByUsername(username);
+    const isChef = user?.role === 'chef';
+    const isPasswordMatch = user?.password_hash
+      ? this.verifyPassword(password, user.password_hash)
+      : false;
 
-    if (!chefUsername || !chefPassword) {
-      throw new InternalServerErrorException(
-        'CHEF_USERNAME and CHEF_PASSWORD are required for chef login',
-      );
-    }
-
-    const isUsernameMatch = username === chefUsername;
-    const isPasswordMatch = this.safeCompare(password, chefPassword);
-
-    if (!isUsernameMatch || !isPasswordMatch) {
+    if (!user || !isChef || !isPasswordMatch) {
       throw new UnauthorizedException('Invalid chef credentials');
     }
-
-    const user = await this.usersService.findOrCreate(`chef-account:${chefUsername}`, {
-      nickname: 'Chef',
-      role: 'chef',
-    });
 
     return this.buildLoginResponse(user);
   }
@@ -109,6 +103,39 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     return user;
+  }
+
+  async changeChefPassword(
+    tokenUser: AuthenticatedUser,
+    params: ChangeChefPasswordParams,
+  ) {
+    const currentPassword = params.currentPassword?.trim();
+    const newPassword = params.newPassword?.trim();
+
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException(
+        'currentPassword and newPassword are required',
+      );
+    }
+
+    if (newPassword.length < 6) {
+      throw new BadRequestException(
+        'newPassword must be at least 6 characters long',
+      );
+    }
+
+    const user = await this.usersService.findById(tokenUser.userId);
+    if (!user || user.role !== 'chef' || !user.password_hash) {
+      throw new UnauthorizedException('Chef account not found');
+    }
+
+    if (!this.verifyPassword(currentPassword, user.password_hash)) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    await this.usersService.update(user.id, {
+      password_hash: this.hashPassword(newPassword),
+    });
   }
 
   private async resolveOpenidByCode(code: string): Promise<string> {
@@ -200,5 +227,21 @@ export class AuthService {
     }
 
     return timingSafeEqual(leftBuffer, rightBuffer);
+  }
+
+  private verifyPassword(password: string, passwordHash: string): boolean {
+    const [salt, storedHash] = passwordHash.split(':');
+    if (!salt || !storedHash) {
+      return false;
+    }
+
+    const derivedHash = scryptSync(password, salt, 64).toString('hex');
+    return this.safeCompare(derivedHash, storedHash);
+  }
+
+  private hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex');
+    const hash = scryptSync(password, salt, 64).toString('hex');
+    return `${salt}:${hash}`;
   }
 }

@@ -6,9 +6,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Roles } from './decorators/roles.decorator';
 import { AuthService } from './auth.service';
 import { AuthenticatedUser } from './auth.types';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -90,6 +92,28 @@ export class AuthController {
       code: 0,
       data: null,
       message: 'logout successful',
+    };
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('chef')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change current chef password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body()
+    body: {
+      currentPassword: string;
+      newPassword: string;
+    },
+  ) {
+    await this.authService.changeChefPassword(user, body);
+    return {
+      code: 0,
+      data: null,
+      message: 'password changed successfully',
     };
   }
 }

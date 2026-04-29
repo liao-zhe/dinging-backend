@@ -11,6 +11,9 @@ export class User {
   @Column({ length: 100, unique: true })
   openid: string;
 
+  @Column({ length: 50, nullable: true, unique: true })
+  username: string;
+
   @Column({ length: 50, nullable: true })
   nickname: string;
 
@@ -19,6 +22,9 @@ export class User {
 
   @Column({ length: 20, nullable: true })
   phone: string;
+
+  @Column({ type: 'text', nullable: true })
+  password_hash: string;
 
   @Column({ length: 20, default: 'customer' })
   role: string;
