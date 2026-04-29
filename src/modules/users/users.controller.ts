@@ -19,7 +19,7 @@ export class UsersController {
     return {
       code: 0,
       data: profile,
-      message: 'success',
+      message: '操作成功',
     };
   }
 
@@ -35,7 +35,7 @@ export class UsersController {
     return {
       code: 0,
       data: profile,
-      message: 'success',
+      message: '操作成功',
     };
   }
 }

@@ -43,7 +43,7 @@ export class AuthService {
 
   async wechatLogin(params: WechatLoginParams) {
     if (!params.code?.trim()) {
-      throw new BadRequestException('code is required');
+      throw new BadRequestException('code不能为空');
     }
 
     const openid = await this.resolveOpenidByCode(params.code.trim());
@@ -62,7 +62,7 @@ export class AuthService {
     const password = params.password?.trim();
 
     if (!username || !password) {
-      throw new BadRequestException('username and password are required');
+      throw new BadRequestException('用户名和密码不能为空');
     }
 
     const user = await this.usersService.findByUsername(username);
@@ -72,7 +72,7 @@ export class AuthService {
       : false;
 
     if (!user || !isChef || !isPasswordMatch) {
-      throw new UnauthorizedException('Invalid chef credentials');
+      throw new UnauthorizedException('用户名或密码错误');
     }
 
     return this.buildLoginResponse(user);
@@ -100,7 +100,7 @@ export class AuthService {
   async getCurrentUserProfile(tokenUser: AuthenticatedUser) {
     const user = await this.usersService.findById(tokenUser.userId);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('用户不存在');
     }
     return user;
   }
@@ -113,24 +113,20 @@ export class AuthService {
     const newPassword = params.newPassword?.trim();
 
     if (!currentPassword || !newPassword) {
-      throw new BadRequestException(
-        'currentPassword and newPassword are required',
-      );
+      throw new BadRequestException('当前密码和新密码不能为空');
     }
 
     if (newPassword.length < 6) {
-      throw new BadRequestException(
-        'newPassword must be at least 6 characters long',
-      );
+      throw new BadRequestException('新密码至少需要6个字符');
     }
 
     const user = await this.usersService.findById(tokenUser.userId);
     if (!user || user.role !== 'chef' || !user.password_hash) {
-      throw new UnauthorizedException('Chef account not found');
+      throw new UnauthorizedException('主厨账号不存在');
     }
 
     if (!this.verifyPassword(currentPassword, user.password_hash)) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException('当前密码不正确');
     }
 
     await this.usersService.update(user.id, {
@@ -144,15 +140,11 @@ export class AuthService {
     const secret = this.configService.get<string>('WECHAT_SECRET');
 
     if (!loginMode) {
-      throw new InternalServerErrorException(
-        'WECHAT_LOGIN_MODE is required and must be set to mock or official',
-      );
+      throw new InternalServerErrorException('WECHAT_LOGIN_MODE必须设置为mock或official');
     }
 
     if (!['mock', 'official'].includes(loginMode)) {
-      throw new InternalServerErrorException(
-        'WECHAT_LOGIN_MODE must be either mock or official',
-      );
+      throw new InternalServerErrorException('WECHAT_LOGIN_MODE必须是mock或official');
     }
 
     if (loginMode === 'mock') {
@@ -160,9 +152,7 @@ export class AuthService {
     }
 
     if (!appId || !secret) {
-      throw new InternalServerErrorException(
-        'WECHAT_APPID and WECHAT_SECRET are required in official mode',
-      );
+      throw new InternalServerErrorException('正式模式下WECHAT_APPID和WECHAT_SECRET不能为空');
     }
 
     const url = new URL('https://api.weixin.qq.com/sns/jscode2session');
@@ -173,7 +163,7 @@ export class AuthService {
 
     const response = await fetch(url.toString());
     if (!response.ok) {
-      throw new UnauthorizedException('Failed to call WeChat login API');
+      throw new UnauthorizedException('调用微信登录接口失败');
     }
 
     const data = (await response.json()) as {
@@ -183,7 +173,7 @@ export class AuthService {
     };
 
     if (data.errcode || !data.openid) {
-      throw new UnauthorizedException(data.errmsg || 'WeChat login failed');
+      throw new UnauthorizedException(data.errmsg || '微信登录失败');
     }
 
     return data.openid;

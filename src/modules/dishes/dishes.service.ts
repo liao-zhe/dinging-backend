@@ -74,18 +74,18 @@ export class DishesService {
   async createDish(data: CreateDishDto) {
     const name = data.name?.trim() || data.dish_name?.trim();
     if (!name) {
-      throw new BadRequestException('Dish name is required');
+      throw new BadRequestException('菜品名称不能为空');
     }
 
     if (!data.category_id) {
-      throw new BadRequestException('category_id is required');
+      throw new BadRequestException('分类ID不能为空');
     }
 
     const category = await this.categoriesRepository.findOne({
       where: { id: data.category_id, is_active: 1 },
     });
     if (!category) {
-      throw new BadRequestException('Category not found or inactive');
+      throw new BadRequestException('分类不存在或已禁用');
     }
 
     const rawMaxSort = await this.dishesRepository
@@ -116,7 +116,7 @@ export class DishesService {
   async updateDish(id: string, data: UpdateDishDto) {
     const dish = await this.dishesRepository.findOne({ where: { id } });
     if (!dish) {
-      throw new NotFoundException('Dish not found');
+      throw new NotFoundException('菜品不存在');
     }
 
     if (data.category_id) {
@@ -124,7 +124,7 @@ export class DishesService {
         where: { id: data.category_id, is_active: 1 },
       });
       if (!category) {
-        throw new BadRequestException('Category not found or inactive');
+        throw new BadRequestException('分类不存在或已禁用');
       }
       dish.category_id = data.category_id;
     }
@@ -132,7 +132,7 @@ export class DishesService {
     if (data.name !== undefined || data.dish_name !== undefined) {
       const nextName = data.name?.trim() || data.dish_name?.trim();
       if (!nextName) {
-        throw new BadRequestException('Dish name is required');
+        throw new BadRequestException('菜品名称不能为空');
       }
       dish.name = nextName;
     }
@@ -168,7 +168,7 @@ export class DishesService {
   async deleteDish(id: string) {
     const dish = await this.dishesRepository.findOne({ where: { id } });
     if (!dish) {
-      throw new NotFoundException('Dish not found');
+      throw new NotFoundException('菜品不存在');
     }
 
     await this.dishesRepository.remove(dish);

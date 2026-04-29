@@ -18,7 +18,7 @@ export class DishesController {
     return {
       code: 0,
       data: categories,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -30,7 +30,7 @@ export class DishesController {
     return {
       code: 0,
       data: dishes,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -44,7 +44,7 @@ export class DishesController {
     return {
       code: 0,
       data: dish,
-      message: 'created',
+      message: '菜品创建成功',
     };
   }
 
@@ -58,7 +58,7 @@ export class DishesController {
     return {
       code: 0,
       data: dish,
-      message: 'updated',
+      message: '菜品更新成功',
     };
   }
 
@@ -70,7 +70,7 @@ export class DishesController {
     return {
       code: 0,
       data: dishes,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -83,7 +83,7 @@ export class DishesController {
       return {
         code: 0,
         data: [],
-        message: 'success',
+        message: '查询成功',
       };
     }
 
@@ -91,7 +91,7 @@ export class DishesController {
     return {
       code: 0,
       data: dishes,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -105,7 +105,7 @@ export class DishesController {
     return {
       code: 0,
       data: result,
-      message: 'deleted',
+      message: '菜品已删除',
     };
   }
 
@@ -119,14 +119,14 @@ export class DishesController {
       return {
         code: 404,
         data: null,
-        message: 'dish not found',
+        message: '菜品不存在',
       };
     }
 
     return {
       code: 0,
       data: dish,
-      message: 'success',
+      message: '查询成功',
     };
   }
 }

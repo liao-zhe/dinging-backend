@@ -49,7 +49,7 @@ export class UploadController {
     return {
       code: 0,
       data: result,
-      message: 'uploaded',
+      message: '上传成功',
     };
   }
 }

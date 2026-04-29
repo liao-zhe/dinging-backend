@@ -25,7 +25,7 @@ export class UploadService implements OnModuleInit {
     const secretKey = this.configService.get<string>('MINIO_SECRET_KEY');
 
     if (!endPoint || !accessKey || !secretKey) {
-      throw new Error('Missing MinIO configuration');
+      throw new Error('MinIO配置缺失');
     }
 
     const rawPort = this.configService.get<string>('MINIO_PORT');
@@ -34,7 +34,7 @@ export class UploadService implements OnModuleInit {
     const useSSL = rawUseSSL.trim().toLowerCase() === 'true';
 
     if (!Number.isInteger(port) || port <= 0) {
-      throw new Error(`Invalid MINIO_PORT: ${rawPort}`);
+      throw new Error(`无效的MINIO端口: ${rawPort}`);
     }
 
     this.client = new Client({
@@ -99,11 +99,11 @@ export class UploadService implements OnModuleInit {
 
   async uploadImage(file: Express.Multer.File) {
     if (!file) {
-      throw new BadRequestException('Image file is required');
+      throw new BadRequestException('请上传图片文件');
     }
 
     if (!file.mimetype?.startsWith('image/')) {
-      throw new BadRequestException('Only image files are allowed');
+      throw new BadRequestException('仅支持图片文件');
     }
 
     if (!this.isBucketReady) {
@@ -111,7 +111,7 @@ export class UploadService implements OnModuleInit {
     }
 
     if (!this.isBucketReady) {
-      throw new ServiceUnavailableException('Image upload service is temporarily unavailable');
+      throw new ServiceUnavailableException('图片上传服务暂时不可用');
     }
 
     const ext = path.extname(file.originalname || '') || '';
@@ -124,7 +124,7 @@ export class UploadService implements OnModuleInit {
       });
     } catch (error) {
       this.logger.error(`Failed to upload file to MinIO: ${objectKey}`, error?.stack || error);
-      throw new InternalServerErrorException('Image upload failed');
+      throw new InternalServerErrorException('图片上传失败');
     }
 
     return {

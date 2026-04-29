@@ -20,7 +20,7 @@ export class WishlistsController {
     return {
       code: 0,
       data: dishes,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -32,7 +32,7 @@ export class WishlistsController {
     return {
       code: 0,
       data: dish,
-      message: 'created',
+      message: '创建成功',
     };
   }
 
@@ -44,7 +44,7 @@ export class WishlistsController {
     return {
       code: 0,
       data: dish,
-      message: 'updated',
+      message: '更新成功',
     };
   }
 
@@ -56,7 +56,7 @@ export class WishlistsController {
     return {
       code: 0,
       data: result,
-      message: 'deleted',
+      message: '删除成功',
     };
   }
 
@@ -68,7 +68,7 @@ export class WishlistsController {
     return {
       code: 0,
       data: dishes,
-      message: 'success',
+      message: '查询成功',
     };
   }
 }

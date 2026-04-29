@@ -57,7 +57,7 @@ export class OrdersService {
     const dishes = await this.dishesRepository.findByIds(dishIds);
 
     if (dishes.length !== dishIds.length) {
-      throw new BadRequestException('Some dishes do not exist');
+      throw new BadRequestException('部分菜品不存在');
     }
 
     const orderItems = orderData.items.map((item) => {
@@ -123,11 +123,11 @@ export class OrdersService {
     });
 
     if (!order) {
-      throw new BadRequestException('Order not found');
+      throw new BadRequestException('订单不存在');
     }
 
     if (order.status !== 'pending') {
-      throw new BadRequestException('Only pending orders can be cancelled');
+      throw new BadRequestException('只有待处理的订单才能取消');
     }
 
     order.status = 'cancelled';
@@ -140,11 +140,11 @@ export class OrdersService {
     });
 
     if (!order) {
-      throw new BadRequestException('Order not found');
+      throw new BadRequestException('订单不存在');
     }
 
     if (!['cancelled', 'completed'].includes(order.status)) {
-      throw new BadRequestException('Only cancelled or completed orders can be deleted');
+      throw new BadRequestException('只有已取消或已完成的订单才能删除');
     }
 
     await this.ordersRepository.remove(order);
@@ -171,12 +171,12 @@ export class OrdersService {
     });
 
     if (!order) {
-      throw new BadRequestException('Order not found');
+      throw new BadRequestException('订单不存在');
     }
 
     const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
     if (!validStatuses.includes(status)) {
-      throw new BadRequestException('Invalid order status');
+      throw new BadRequestException('无效的订单状态');
     }
 
     order.status = status;

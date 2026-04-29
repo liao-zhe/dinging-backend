@@ -32,7 +32,7 @@ export class OrdersController {
     return {
       code: 0,
       data: order,
-      message: 'order created',
+      message: '订单创建成功',
     };
   }
 
@@ -47,7 +47,7 @@ export class OrdersController {
     return {
       code: 0,
       data: orders,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -63,7 +63,7 @@ export class OrdersController {
     return {
       code: 0,
       data: orders,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -79,7 +79,7 @@ export class OrdersController {
     return {
       code: 0,
       data: order,
-      message: 'updated',
+      message: '订单状态更新成功',
     };
   }
 
@@ -97,14 +97,14 @@ export class OrdersController {
       return {
         code: 404,
         data: null,
-        message: 'order not found',
+        message: '订单不存在',
       };
     }
 
     return {
       code: 0,
       data: order,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -119,7 +119,7 @@ export class OrdersController {
     return {
       code: 0,
       data: order,
-      message: 'order cancelled',
+      message: '订单已取消',
     };
   }
 
@@ -134,7 +134,7 @@ export class OrdersController {
     return {
       code: 0,
       data: result,
-      message: 'order deleted',
+      message: '订单已删除',
     };
   }
 }

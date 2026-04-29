@@ -33,7 +33,7 @@ export class AuthController {
     return {
       code: 0,
       data: result,
-      message: 'login successful',
+      message: '登录成功',
     };
   }
 
@@ -51,7 +51,7 @@ export class AuthController {
     return {
       code: 0,
       data: result,
-      message: 'login successful',
+      message: '登录成功',
     };
   }
 
@@ -64,7 +64,7 @@ export class AuthController {
     return {
       code: 0,
       data: user,
-      message: 'authenticated',
+      message: '已认证',
     };
   }
 
@@ -78,7 +78,7 @@ export class AuthController {
     return {
       code: 0,
       data: profile,
-      message: 'success',
+      message: '查询成功',
     };
   }
 
@@ -91,7 +91,7 @@ export class AuthController {
     return {
       code: 0,
       data: null,
-      message: 'logout successful',
+      message: '退出成功',
     };
   }
 
@@ -113,7 +113,7 @@ export class AuthController {
     return {
       code: 0,
       data: null,
-      message: 'password changed successfully',
+      message: '密码修改成功',
     };
   }
 }

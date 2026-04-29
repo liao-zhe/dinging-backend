@@ -20,7 +20,7 @@ export class AiController {
     return {
       code: 0,
       data: avatar,
-      message: 'success',
+      message: '操作成功',
     };
   }
 
@@ -38,7 +38,7 @@ export class AiController {
     return {
       code: 0,
       data: avatar,
-      message: 'success',
+      message: '操作成功',
     };
   }
 
@@ -50,7 +50,7 @@ export class AiController {
     return {
       code: 0,
       data: response,
-      message: 'success',
+      message: '操作成功',
     };
   }
 }
