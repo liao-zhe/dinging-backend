@@ -1,6 +1,6 @@
-# Family Chef Backend
+# 哲哲私厨 Backend
 
-家庭私厨小程序后端，基于 `NestJS + TypeScript + MySQL + TypeORM`。
+哲哲私厨小程序后端，基于 `NestJS + TypeScript + MySQL + TypeORM`。
 
 当前项目已包含：
 

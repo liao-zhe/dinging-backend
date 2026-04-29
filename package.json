@@ -1,7 +1,7 @@
 {
   "name": "family-chef-backend",
   "version": "1.0.0",
-  "description": "家庭私厨小程序后端",
+  "description": "哲哲私厨小程序后端",
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",

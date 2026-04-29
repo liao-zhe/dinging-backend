@@ -20,8 +20,8 @@ async function bootstrap() {
 
   // Swagger文档
   const config = new DocumentBuilder()
-    .setTitle('家庭私厨API')
-    .setDescription('家庭私厨小程序后端接口文档')
+    .setTitle('哲哲私厨API')
+    .setDescription('哲哲私厨小程序后端接口文档')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);

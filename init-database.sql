@@ -1,5 +1,5 @@
 -- ============================================
--- Family Chef - full database bootstrap script
+-- 哲哲私厨 - full database bootstrap script
 -- Target database: homechef
 --
 -- Goals:
