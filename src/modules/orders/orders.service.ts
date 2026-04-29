@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Resend } from 'resend';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Order } from './order.entity';
@@ -9,6 +11,9 @@ import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+  private readonly resend: Resend | null;
+
   constructor(
     @InjectRepository(Order)
     private ordersRepository: Repository<Order>,
@@ -16,8 +21,12 @@ export class OrdersService {
     private orderItemsRepository: Repository<OrderItem>,
     @InjectRepository(Dish)
     private dishesRepository: Repository<Dish>,
+    private readonly configService: ConfigService,
     private readonly uploadService: UploadService,
-  ) {}
+  ) {
+    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
+    this.resend = resendApiKey ? new Resend(resendApiKey) : null;
+  }
 
   private normalizeOrderImages<T extends Order | Order[] | null>(orderOrOrders: T): T {
     if (!orderOrOrders) {
@@ -42,6 +51,102 @@ export class OrdersService {
     const day = String(date.getDate()).padStart(2, '0');
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `FC${year}${month}${day}${random}`;
+  }
+
+  private formatOrderCreatedAt(date: Date | string | undefined): string {
+    const value = date ? new Date(date) : new Date();
+    return new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(value);
+  }
+
+  private formatOrderDate(date: Date | string): string {
+    return new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(date));
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private buildOrderNotificationHtml(payload: {
+    orderNo: string;
+    createdAt: string;
+    orderDate: string;
+    mealType: string;
+    peopleCount: number;
+    items: Array<{ name: string; quantity: number }>;
+  }) {
+    const itemsHtml = payload.items
+      .map(
+        (item) =>
+          `<li style="margin:0 0 8px;">${this.escapeHtml(item.name)} x ${item.quantity}</li>`,
+      )
+      .join('');
+
+    return `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;line-height:1.7;">
+        <h2 style="margin:0 0 16px;color:#111827;">哲哲私厨新订单通知</h2>
+        <p style="margin:0 0 8px;"><strong>订单号：</strong>${this.escapeHtml(payload.orderNo)}</p>
+        <p style="margin:0 0 8px;"><strong>下单时间：</strong>${this.escapeHtml(payload.createdAt)}</p>
+        <p style="margin:0 0 8px;"><strong>用餐日期：</strong>${this.escapeHtml(payload.orderDate)}</p>
+        <p style="margin:0 0 8px;"><strong>餐期：</strong>${this.escapeHtml(payload.mealType)}</p>
+        <p style="margin:0 0 16px;"><strong>人数：</strong>${payload.peopleCount}</p>
+        <div style="margin-top:16px;">
+          <strong>菜品清单：</strong>
+          <ul style="margin:12px 0 0;padding-left:20px;">
+            ${itemsHtml}
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  private async sendOrderNotificationEmail(payload: {
+    orderNo: string;
+    createdAt: string;
+    orderDate: string;
+    mealType: string;
+    peopleCount: number;
+    items: Array<{ name: string; quantity: number }>;
+  }) {
+    if (!this.resend) {
+      this.logger.warn('RESEND_API_KEY not configured, skip order email notification');
+      return;
+    }
+
+    const from = this.configService.get<string>('RESEND_FROM');
+    const to = this.configService.get<string>('CHEF_NOTIFY_EMAIL');
+
+    if (!from || !to) {
+      this.logger.warn('RESEND_FROM or CHEF_NOTIFY_EMAIL not configured, skip order email notification');
+      return;
+    }
+
+    const { error } = await this.resend.emails.send({
+      from,
+      to: [to],
+      subject: `哲哲私厨新订单通知：${payload.orderNo}`,
+      html: this.buildOrderNotificationHtml(payload),
+    });
+
+    if (error) {
+      throw new Error(error.message || 'send order notification email failed');
+    }
   }
 
   async createOrder(
@@ -91,6 +196,22 @@ export class OrdersService {
       });
       await this.orderItemsRepository.save(orderItem);
     }
+
+    void this.sendOrderNotificationEmail({
+      orderNo: savedOrder.order_no,
+      createdAt: this.formatOrderCreatedAt(savedOrder.created_at),
+      orderDate: this.formatOrderDate(savedOrder.order_date),
+      mealType: savedOrder.meal_type,
+      peopleCount: savedOrder.people_count,
+      items: orderItems.map((item) => ({
+        name: item.dish_name,
+        quantity: item.quantity,
+      })),
+    }).catch((error) => {
+      this.logger.error(
+        `send order notification email failed for order ${savedOrder.order_no}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
 
     return this.getOrderById(savedOrder.id);
   }
