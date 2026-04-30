@@ -346,8 +346,8 @@ export class OrdersService {
       throw new BadRequestException('订单不存在');
     }
 
-    if (order.status !== 'confirmed') {
-      throw new BadRequestException('只有已确认的订单才能删除');
+    if (!['confirmed', 'cancelled'].includes(order.status)) {
+      throw new BadRequestException('只有已确认或已取消的订单才能删除');
     }
 
     await this.ordersRepository.remove(order);
