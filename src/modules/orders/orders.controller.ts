@@ -130,7 +130,7 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: 'Deleted successfully' })
   @ApiResponse({ status: 400, description: 'Delete failed' })
   async deleteOrder(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    const result = await this.ordersService.deleteOrder(user.userId, id);
+    const result = await this.ordersService.deleteOrder(user.userId, user.role, id);
     return {
       code: 0,
       data: result,

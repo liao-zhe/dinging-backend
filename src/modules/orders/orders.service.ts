@@ -149,6 +149,64 @@ export class OrdersService {
     }
   }
 
+  private async sendOrderCancellationEmail(payload: {
+    orderNo: string;
+    createdAt: string;
+    orderDate: string;
+    mealType: string;
+    peopleCount: number;
+    items: Array<{ name: string; quantity: number }>;
+  }) {
+    if (!this.resend) {
+      this.logger.warn('RESEND_API_KEY not configured, skip order cancellation email notification');
+      return;
+    }
+
+    const from = this.configService.get<string>('RESEND_FROM');
+    const to = this.configService.get<string>('CHEF_NOTIFY_EMAIL');
+
+    if (!from || !to) {
+      this.logger.warn('RESEND_FROM or CHEF_NOTIFY_EMAIL not configured, skip order cancellation email notification');
+      return;
+    }
+
+    const itemsHtml = payload.items
+      .map(
+        (item) =>
+          `<li style="margin:0 0 8px;">${this.escapeHtml(item.name)} x ${item.quantity}</li>`,
+      )
+      .join('');
+
+    const html = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;line-height:1.7;">
+        <h2 style="margin:0 0 16px;color:#dc2626;">⚠️ 订单取消通知</h2>
+        <p style="margin:0 0 8px;"><strong>订单号：</strong>${this.escapeHtml(payload.orderNo)}</p>
+        <p style="margin:0 0 8px;"><strong>下单时间：</strong>${this.escapeHtml(payload.createdAt)}</p>
+        <p style="margin:0 0 8px;"><strong>用餐日期：</strong>${this.escapeHtml(payload.orderDate)}</p>
+        <p style="margin:0 0 8px;"><strong>餐期：</strong>${this.escapeHtml(payload.mealType)}</p>
+        <p style="margin:0 0 16px;"><strong>人数：</strong>${payload.peopleCount}</p>
+        <div style="margin-top:16px;">
+          <strong>菜品清单：</strong>
+          <ul style="margin:12px 0 0;padding-left:20px;">
+            ${itemsHtml}
+          </ul>
+        </div>
+        <p style="margin-top:16px;color:#dc2626;font-weight:bold;">该订单已被用户取消，请留意。</p>
+      </div>
+    `;
+
+    const { error } = await this.resend.emails.send({
+      from,
+      to: [to],
+      subject: `⚠️ 哲哲私厨订单取消通知：${payload.orderNo}`,
+      html,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'send order cancellation email failed');
+    }
+  }
+
   async createOrder(
     userId: string,
     orderData: {
@@ -241,21 +299,45 @@ export class OrdersService {
   async cancelOrder(userId: string, orderId: string) {
     const order = await this.ordersRepository.findOne({
       where: { id: orderId, user_id: userId },
+      relations: ['items'],
     });
 
     if (!order) {
       throw new BadRequestException('订单不存在');
     }
 
-    if (order.status !== 'pending') {
-      throw new BadRequestException('只有待处理的订单才能取消');
+    if (order.status === 'confirmed') {
+      throw new BadRequestException('已确认的订单不能取消');
     }
 
     order.status = 'cancelled';
-    return this.ordersRepository.save(order);
+    const savedOrder = await this.ordersRepository.save(order);
+
+    // 发送取消订单邮件通知主厨
+    void this.sendOrderCancellationEmail({
+      orderNo: savedOrder.order_no,
+      createdAt: this.formatOrderCreatedAt(savedOrder.created_at),
+      orderDate: this.formatOrderDate(savedOrder.order_date),
+      mealType: savedOrder.meal_type,
+      peopleCount: savedOrder.people_count,
+      items: order.items.map((item) => ({
+        name: item.dish_name,
+        quantity: item.quantity,
+      })),
+    }).catch((error) => {
+      this.logger.error(
+        `send order cancellation email failed for order ${savedOrder.order_no}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+
+    return savedOrder;
   }
 
-  async deleteOrder(userId: string, orderId: string) {
+  async deleteOrder(userId: string, role: string, orderId: string) {
+    if (role === 'chef') {
+      throw new BadRequestException('主厨账号不能删除订单');
+    }
+
     const order = await this.ordersRepository.findOne({
       where: { id: orderId, user_id: userId },
     });
@@ -264,8 +346,8 @@ export class OrdersService {
       throw new BadRequestException('订单不存在');
     }
 
-    if (!['cancelled', 'completed'].includes(order.status)) {
-      throw new BadRequestException('只有已取消或已完成的订单才能删除');
+    if (order.status !== 'confirmed') {
+      throw new BadRequestException('只有已确认的订单才能删除');
     }
 
     await this.ordersRepository.remove(order);
