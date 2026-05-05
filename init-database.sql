@@ -1,5 +1,5 @@
 -- ============================================
--- 哲哲私厨 - full database bootstrap script
+-- Family Chef - full database bootstrap script
 -- Target database: homechef
 --
 -- Goals:
@@ -900,6 +900,54 @@ ON DUPLICATE KEY UPDATE
   tag = VALUES(tag),
   is_active = VALUES(is_active),
   sort_order = VALUES(sort_order);
+
+-- ============================================
+-- AI 对话会话表
+-- ============================================
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id VARCHAR(36) NOT NULL COMMENT 'Session ID (UUID)',
+  user_id VARCHAR(36) NOT NULL COMMENT 'User ID',
+  title VARCHAR(100) NULL COMMENT 'Session title',
+  message_count INT NOT NULL DEFAULT 0 COMMENT 'Message count',
+  last_message_at TIMESTAMP NULL COMMENT 'Last message time',
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  PRIMARY KEY (id),
+  KEY idx_user_id (user_id),
+  KEY idx_last_message (last_message_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI chat sessions';
+
+-- ============================================
+-- AI 对话消息表
+-- ============================================
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id VARCHAR(36) NOT NULL COMMENT 'Message ID (UUID)',
+  user_id VARCHAR(36) NOT NULL COMMENT 'User ID',
+  session_id VARCHAR(36) NOT NULL COMMENT 'Session ID',
+  role ENUM('user', 'assistant', 'system') NOT NULL COMMENT 'Message role',
+  content TEXT NOT NULL COMMENT 'Message content',
+  tool_calls JSON NULL COMMENT 'Tool calls (JSON)',
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  PRIMARY KEY (id),
+  KEY idx_user_session (user_id, session_id),
+  KEY idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI chat messages';
+
+-- ============================================
+-- 用户偏好表
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id VARCHAR(36) NOT NULL COMMENT 'Preference ID (UUID)',
+  user_id VARCHAR(36) NOT NULL COMMENT 'User ID',
+  dietary_restrictions TEXT NULL COMMENT '饮食限制（如：素食、不吃辣）',
+  favorite_cuisines TEXT NULL COMMENT '喜爱的菜系',
+  allergies TEXT NULL COMMENT '过敏源',
+  taste_preferences TEXT NULL COMMENT '口味偏好（如：清淡、重口）',
+  typical_people_count INT NOT NULL DEFAULT 0 COMMENT '通常用餐人数',
+  notes TEXT NULL COMMENT '其他备注',
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='User preferences for AI recommendations';
 
 SET FOREIGN_KEY_CHECKS = 1;
 
