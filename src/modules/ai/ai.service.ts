@@ -250,20 +250,17 @@ ${preferenceText ? `\n## 用户偏好\n${preferenceText}\n请根据用户偏好�
     };
   }
 
-  private async createAgentStreamResponse(
+  private async *createAgentStreamResponse(
     stream: AsyncIterable<any>,
     onChunk: (chunk: any) => Promise<void>,
-  ) {
+  ): AsyncGenerator<Uint8Array> {
     const encoder = new TextEncoder();
-    const chunks: Uint8Array[] = [];
 
     for await (const chunk of stream) {
       await onChunk(chunk);
       const data = `data: ${JSON.stringify(chunk)}\n\n`;
-      chunks.push(encoder.encode(data));
+      yield encoder.encode(data);
     }
-
-    return chunks;
   }
 
   async getSessions(userId: string) {

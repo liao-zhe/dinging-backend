@@ -46,10 +46,11 @@ export class AiController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Session-Id', result.session_id);
 
-    const chunks = await result.stream;
-    for (const chunk of chunks) {
+    // 边生成边写入，真正的流式响应
+    for await (const chunk of result.stream) {
       res.write(chunk);
     }
+
     res.end();
   }
 
