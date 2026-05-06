@@ -41,7 +41,7 @@ export class AiController {
   async chatStream(@Request() req, @Body() dto: ChatDto, @Res() res: Response) {
     const result = await this.aiService.chatStream(req.user.userId, dto);
 
-    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Session-Id', result.session_id);
