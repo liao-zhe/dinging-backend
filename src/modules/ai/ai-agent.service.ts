@@ -66,9 +66,13 @@ export class AiAgentService {
       // 收集菜品数据
       if (result.success && result.data) {
         if (Array.isArray(result.data)) {
-          allDishes.push(...result.data);
+          if (result.type === 'dish' || result.type === 'recommendation') {
+            allDishes.push(...result.data);
+          }
         } else if (result.data.id) {
-          allDishes.push(result.data);
+          if (result.type === 'dish' || result.type === 'recommendation') {
+            allDishes.push(result.data);
+          }
         }
       }
     }
@@ -162,9 +166,13 @@ export class AiAgentService {
       // 收集菜品数据
       if (result.success && result.data) {
         if (Array.isArray(result.data)) {
-          allDishes.push(...result.data);
+          if (result.type === 'dish' || result.type === 'recommendation') {
+            allDishes.push(...result.data);
+          }
         } else if (result.data.id) {
-          allDishes.push(result.data);
+          if (result.type === 'dish' || result.type === 'recommendation') {
+            allDishes.push(result.data);
+          }
         }
       }
     }

@@ -7,6 +7,7 @@ import { Tool } from './providers/llm-provider.interface';
 export interface ToolResult {
   success: boolean;
   data?: any;
+  type?: 'dish' | 'category' | 'orders' | 'wishlist' | 'recommendation';
   error?: string;
 }
 
@@ -200,6 +201,7 @@ export class AiToolsService {
 
     return {
       success: true,
+      type: 'dish',
       data: formattedDishes,
     };
   }
@@ -214,6 +216,7 @@ export class AiToolsService {
 
     return {
       success: true,
+      type: 'dish',
       data: {
         id: dish.id,
         name: dish.name,
@@ -231,6 +234,7 @@ export class AiToolsService {
 
     return {
       success: true,
+      type: 'category',
       data: categories.map((cat) => ({
         id: cat.id,
         name: cat.name,
@@ -244,6 +248,7 @@ export class AiToolsService {
 
     return {
       success: true,
+      type: 'wishlist',
       data: dishes.map((dish) => ({
         id: dish.id,
         name: dish.name,
@@ -269,6 +274,7 @@ export class AiToolsService {
 
     return {
       success: true,
+      type: 'orders',
       data: recentOrders.map((order) => ({
         order_no: order.order_no,
         order_date: order.order_date,
@@ -344,6 +350,7 @@ export class AiToolsService {
     const limit = args.people_count ? Math.ceil(args.people_count * 1.5) : 4;
     return {
       success: true,
+      type: 'recommendation',
       data: recommended.slice(0, limit),
     };
   }
