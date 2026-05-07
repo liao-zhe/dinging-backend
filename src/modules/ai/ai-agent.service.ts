@@ -18,6 +18,38 @@ export class AiAgentService {
     private readonly llmFactory: LLMProviderFactory,
   ) {}
 
+  private collectDishesFromToolResult(result: any, target: any[]) {
+    if (!result.success || !result.data) {
+      return;
+    }
+
+    if (Array.isArray(result.data)) {
+      if (result.type === 'dish' || result.type === 'recommendation') {
+        target.push(...result.data);
+      }
+      return;
+    }
+
+    if (result.data.id && (result.type === 'dish' || result.type === 'recommendation')) {
+      target.push(result.data);
+    }
+  }
+
+  private filterMentionedDishes(content: string, dishes: any[]) {
+    if (!dishes.length) {
+      return undefined;
+    }
+
+    const uniqueDishes = dishes.filter(
+      (dish, index, list) => list.findIndex((item) => item.id === dish.id) === index,
+    );
+    const mentionedDishes = uniqueDishes.filter(
+      (dish) => dish.name && content.includes(dish.name),
+    );
+
+    return mentionedDishes.length > 0 ? mentionedDishes.slice(0, 6) : undefined;
+  }
+
   // 执行 Agent 调用（带 Function Calling）
   async runAgent(
     messages: Message[],
@@ -64,17 +96,7 @@ export class AiAgentService {
       });
 
       // 收集菜品数据
-      if (result.success && result.data) {
-        if (Array.isArray(result.data)) {
-          if (result.type === 'dish' || result.type === 'recommendation') {
-            allDishes.push(...result.data);
-          }
-        } else if (result.data.id) {
-          if (result.type === 'dish' || result.type === 'recommendation') {
-            allDishes.push(result.data);
-          }
-        }
-      }
+      this.collectDishesFromToolResult(result, allDishes);
     }
 
     // 将工具调用和结果添加到消息历史
@@ -96,7 +118,7 @@ export class AiAgentService {
     return {
       content: finalResponse.content,
       toolCalls: response.toolCalls,
-      dishes: allDishes.length > 0 ? allDishes : undefined,
+      dishes: this.filterMentionedDishes(finalResponse.content, allDishes),
     };
   }
 
@@ -125,7 +147,6 @@ export class AiAgentService {
     for await (const chunk of stream) {
       if (chunk.type === 'text' && chunk.content) {
         responseContent += chunk.content;
-        yield { type: 'text', content: chunk.content };
       }
       if (chunk.type === 'tool_call' && chunk.toolCalls) {
         toolCalls = chunk.toolCalls;
@@ -135,6 +156,9 @@ export class AiAgentService {
 
     // 如果没有工具调用，直接完成
     if (toolCalls.length === 0) {
+      if (responseContent) {
+        yield { type: 'text', content: responseContent };
+      }
       yield { type: 'done' };
       return;
     }
@@ -164,24 +188,10 @@ export class AiAgentService {
       });
 
       // 收集菜品数据
-      if (result.success && result.data) {
-        if (Array.isArray(result.data)) {
-          if (result.type === 'dish' || result.type === 'recommendation') {
-            allDishes.push(...result.data);
-          }
-        } else if (result.data.id) {
-          if (result.type === 'dish' || result.type === 'recommendation') {
-            allDishes.push(result.data);
-          }
-        }
-      }
+      this.collectDishesFromToolResult(result, allDishes);
     }
 
     // 返回菜品数据
-    if (allDishes.length > 0) {
-      yield { type: 'dishes', dishes: allDishes };
-    }
-
     // 将工具调用和结果添加到消息历史
     const updatedMessages: Message[] = [
       ...messages,
@@ -198,10 +208,17 @@ export class AiAgentService {
       messages: updatedMessages,
     });
 
+    let finalContent = '';
     for await (const chunk of finalStream) {
       if (chunk.type === 'text' && chunk.content) {
+        finalContent += chunk.content;
         yield { type: 'text', content: chunk.content };
       }
+    }
+
+    const mentionedDishes = this.filterMentionedDishes(finalContent, allDishes);
+    if (mentionedDishes?.length) {
+      yield { type: 'dishes', dishes: mentionedDishes };
     }
 
     yield { type: 'done' };

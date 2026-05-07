@@ -42,13 +42,17 @@ export class AiController {
     const result = await this.aiService.chatStream(req.user.userId, dto);
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Content-Encoding', 'identity');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.setHeader('X-Session-Id', result.session_id);
+    res.flushHeaders();
 
     // 边生成边写入，真正的流式响应
     for await (const chunk of result.stream) {
       res.write(chunk);
+      (res as any).flush?.();
     }
 
     res.end();
