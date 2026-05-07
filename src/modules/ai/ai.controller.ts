@@ -59,7 +59,8 @@ export class AiController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '获取会话列表' })
   async getSessions(@Request() req) {
-    return this.aiService.getSessions(req.user.userId);
+    const sessions = await this.aiService.getSessions(req.user.userId);
+    return { code: 200, data: sessions, message: '查询成功' };
   }
 
   @Get('sessions/:id/messages')
@@ -67,7 +68,8 @@ export class AiController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '获取会话消息' })
   async getMessages(@Request() req, @Param('id') id: string) {
-    return this.aiService.getMessages(req.user.userId, id);
+    const messages = await this.aiService.getMessages(req.user.userId, id);
+    return { code: 200, data: messages, message: '查询成功' };
   }
 
   @Delete('sessions/:id')
@@ -75,7 +77,8 @@ export class AiController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '删除会话' })
   async deleteSession(@Request() req, @Param('id') id: string) {
-    return this.aiService.deleteSession(req.user.userId, id);
+    const result = await this.aiService.deleteSession(req.user.userId, id);
+    return { code: 200, data: result, message: '删除成功' };
   }
 
   @Get('preferences')
