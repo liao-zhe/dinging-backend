@@ -50,6 +50,15 @@ export class AiAgentService {
     return mentionedDishes.length > 0 ? mentionedDishes.slice(0, 6) : undefined;
   }
 
+  private removeToolCallMarkup(content: string): string {
+    return content
+      .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+      .replace(/<tool_call>[\s\S]*$/g, '')
+      .replace(/<\/?tool_call>/g, '')
+      .replace(/\{\s*["']name["']\s*:\s*["'][^"']+["']\s*,\s*["']arguments["']\s*:\s*\{[\s\S]*?\}\s*\}/g, '')
+      .trim();
+  }
+
   // 执行 Agent 调用（带 Function Calling）
   async runAgent(
     messages: Message[],
@@ -67,7 +76,7 @@ export class AiAgentService {
     // 如果没有工具调用，直接返回文本
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return {
-        content: response.content,
+        content: this.removeToolCallMarkup(response.content),
       };
     }
 
@@ -114,11 +123,12 @@ export class AiAgentService {
     const finalResponse = await provider.chat({
       messages: updatedMessages,
     });
+    const finalContent = this.removeToolCallMarkup(finalResponse.content);
 
     return {
-      content: finalResponse.content,
+      content: finalContent,
       toolCalls: response.toolCalls,
-      dishes: this.filterMentionedDishes(finalResponse.content, allDishes),
+      dishes: this.filterMentionedDishes(finalContent, allDishes),
     };
   }
 
@@ -156,8 +166,9 @@ export class AiAgentService {
 
     // 如果没有工具调用，直接完成
     if (toolCalls.length === 0) {
-      if (responseContent) {
-        yield { type: 'text', content: responseContent };
+      const cleanContent = this.removeToolCallMarkup(responseContent);
+      if (cleanContent) {
+        yield { type: 'text', content: cleanContent };
       }
       yield { type: 'done' };
       return;
@@ -216,7 +227,8 @@ export class AiAgentService {
       }
     }
 
-    const mentionedDishes = this.filterMentionedDishes(finalContent, allDishes);
+    const cleanFinalContent = this.removeToolCallMarkup(finalContent);
+    const mentionedDishes = this.filterMentionedDishes(cleanFinalContent, allDishes);
     if (mentionedDishes?.length) {
       yield { type: 'dishes', dishes: mentionedDishes };
     }

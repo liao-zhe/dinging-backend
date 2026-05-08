@@ -26,6 +26,15 @@ export class AiService {
     private preferenceService: UserPreferenceService,
   ) {}
 
+  private removeToolCallMarkup(content: string): string {
+    return content
+      .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+      .replace(/<tool_call>[\s\S]*$/g, '')
+      .replace(/<\/?tool_call>/g, '')
+      .replace(/\{\s*["']name["']\s*:\s*["'][^"']+["']\s*,\s*["']arguments["']\s*:\s*\{[\s\S]*?\}\s*\}/g, '')
+      .trim();
+  }
+
   // 构建系统提示词（包含用户偏好）
   private async buildSystemPrompt(userId: string): Promise<string> {
     const preference = await this.preferenceService.getPreference(userId);
@@ -145,7 +154,7 @@ ${preferenceText ? `\n## 用户偏好\n${preferenceText}\n请根据用户偏好�
       user_id: userId,
       session_id: session.id,
       role: 'assistant',
-      content: agentResult.content,
+      content: this.removeToolCallMarkup(agentResult.content),
       tool_calls: agentResult.toolCalls || null,
     });
     await this.messageRepository.save(assistantMessage);
@@ -160,7 +169,7 @@ ${preferenceText ? `\n## 用户偏好\n${preferenceText}\n请根据用户偏好�
 
     return {
       session_id: session.id,
-      content: agentResult.content,
+      content: this.removeToolCallMarkup(agentResult.content),
       dishes: agentResult.dishes,
     };
   }
@@ -231,7 +240,7 @@ ${preferenceText ? `\n## 用户偏好\n${preferenceText}\n请根据用户偏好�
               user_id: userId,
               session_id: session.id,
               role: 'assistant',
-              content: fullContent,
+              content: this.removeToolCallMarkup(fullContent),
               tool_calls: toolCalls.length > 0 ? toolCalls : null,
             });
             await this.messageRepository.save(assistantMessage);
