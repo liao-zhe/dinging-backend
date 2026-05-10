@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { UploadService } from '../upload/upload.service';
 import { Dish } from './dish.entity';
 import { Category } from './category.entity';
+import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateDishDto } from './dto/create-dish.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateDishDto } from './dto/update-dish.dto';
 
 @Injectable()
@@ -36,6 +38,85 @@ export class DishesService {
       where: { is_active: 1 },
       order: { sort_order: 'ASC' },
     });
+  }
+
+  async createCategory(data: CreateCategoryDto) {
+    const name = data.name?.trim();
+    if (!name) {
+      throw new BadRequestException('分类名称不能为空');
+    }
+
+    const existingCategory = await this.categoriesRepository.findOne({
+      where: { name },
+    });
+    if (existingCategory) {
+      throw new BadRequestException('分类名称已存在');
+    }
+
+    const rawMaxSort = await this.categoriesRepository
+      .createQueryBuilder('category')
+      .select('MAX(category.sort_order)', 'max')
+      .getRawOne<{ max: string | null }>();
+    const nextSortOrder = rawMaxSort?.max ? Number(rawMaxSort.max) + 1 : 1;
+
+    const category = this.categoriesRepository.create({
+      id: uuidv4(),
+      name,
+      sort_order: data.sort_order ?? nextSortOrder,
+      is_active: data.is_active ?? 1,
+    });
+
+    return this.categoriesRepository.save(category);
+  }
+
+  async updateCategory(id: string, data: UpdateCategoryDto) {
+    const category = await this.categoriesRepository.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException('分类不存在');
+    }
+
+    if (data.name !== undefined) {
+      const name = data.name.trim();
+      if (!name) {
+        throw new BadRequestException('分类名称不能为空');
+      }
+
+      const existingCategory = await this.categoriesRepository.findOne({
+        where: { name, id: Not(id) },
+      });
+      if (existingCategory) {
+        throw new BadRequestException('分类名称已存在');
+      }
+
+      category.name = name;
+    }
+
+    if (data.sort_order !== undefined) {
+      category.sort_order = Number(data.sort_order);
+    }
+
+    if (data.is_active !== undefined) {
+      category.is_active = Number(data.is_active);
+    }
+
+    return this.categoriesRepository.save(category);
+  }
+
+  async deleteCategory(id: string) {
+    const category = await this.categoriesRepository.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException('分类不存在');
+    }
+
+    const dishCount = await this.dishesRepository.count({
+      where: { category_id: id },
+    });
+    if (dishCount > 0) {
+      throw new BadRequestException('该分类下还有菜品，请先移动或删除菜品');
+    }
+
+    await this.categoriesRepository.remove(category);
+    return { id };
   }
 
   async getDishes() {

@@ -9,7 +9,7 @@
 -- 4. Seed baseline data without overwriting user-modified chef password
 -- ============================================
 
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE DATABASE IF NOT EXISTS homechef
   CHARACTER SET utf8mb4
@@ -412,8 +412,8 @@ SET @sql = IF(
     SELECT 1 FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dishes' AND COLUMN_NAME = 'price'
   ),
-  'ALTER TABLE dishes MODIFY COLUMN price DECIMAL(10,2) NULL COMMENT ''Legacy price column kept for compatibility''',
-  'SELECT "dishes.price does not exist, skip" AS message'
+  'ALTER TABLE dishes DROP COLUMN price',
+  'SELECT "dishes.price does not exist" AS message'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -530,6 +530,16 @@ ALTER TABLE orders
 
 SET @sql = IF(
   EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'total_amount'
+  ),
+  'ALTER TABLE orders DROP COLUMN total_amount',
+  'SELECT "orders.total_amount does not exist" AS message'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND INDEX_NAME = 'uniq_orders_order_no'
   ),
@@ -625,6 +635,26 @@ ALTER TABLE order_items
   MODIFY COLUMN dish_name VARCHAR(100) NOT NULL COMMENT 'Dish name snapshot',
   MODIFY COLUMN dish_image TEXT NULL COMMENT 'Dish image snapshot',
   MODIFY COLUMN quantity INT NOT NULL COMMENT 'Quantity';
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'unit_price'
+  ),
+  'ALTER TABLE order_items DROP COLUMN unit_price',
+  'SELECT "order_items.unit_price does not exist" AS message'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'subtotal'
+  ),
+  'ALTER TABLE order_items DROP COLUMN subtotal',
+  'SELECT "order_items.subtotal does not exist" AS message'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql = IF(
   EXISTS (

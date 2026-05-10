@@ -1,7 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateDishDto } from './dto/create-dish.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateDishDto } from './dto/update-dish.dto';
 import { DishesService } from './dishes.service';
 
@@ -19,6 +23,51 @@ export class DishesController {
       code: 0,
       data: categories,
       message: '查询成功',
+    };
+  }
+
+  @Post('categories')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('chef')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a dish category' })
+  @ApiResponse({ status: 200, description: 'Created successfully' })
+  async createCategory(@Body() body: CreateCategoryDto) {
+    const category = await this.dishesService.createCategory(body);
+    return {
+      code: 0,
+      data: category,
+      message: '分类创建成功',
+    };
+  }
+
+  @Put('categories/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('chef')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a dish category' })
+  @ApiResponse({ status: 200, description: 'Updated successfully' })
+  async updateCategory(@Param('id') id: string, @Body() body: UpdateCategoryDto) {
+    const category = await this.dishesService.updateCategory(id, body);
+    return {
+      code: 0,
+      data: category,
+      message: '分类更新成功',
+    };
+  }
+
+  @Delete('categories/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('chef')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a dish category' })
+  @ApiResponse({ status: 200, description: 'Deleted successfully' })
+  async deleteCategory(@Param('id') id: string) {
+    const result = await this.dishesService.deleteCategory(id);
+    return {
+      code: 0,
+      data: result,
+      message: '分类已删除',
     };
   }
 
